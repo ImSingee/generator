@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/ImSingee/generator/cmd"
+import "github.com/ImSingee/god/cmd"
 
 func main() {
 	cmd.Execute()

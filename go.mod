@@ -1,4 +1,4 @@
-module github.com/ImSingee/generator
+module github.com/ImSingee/god
 
 go 1.14
 

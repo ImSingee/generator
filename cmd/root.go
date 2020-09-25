@@ -16,11 +16,12 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
+	"text/template"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
@@ -29,16 +30,88 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "A code generator for go",
+	Long: `Please use 'go:generate' to run this app. 
+	
+	Add this to your source file (struct_name.go, for example):
+		// go:generate generate getter -t StructName
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	And run this:
+		go generate
+
+	Then a file "struct_name_getter.go" will be generated
+	`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		_ = os.Chdir(viper.GetString("workdir"))
+
+		if viper.GetBool("debug") {
+			info, err := GetBasicInfo()
+
+			if err != nil {
+				return err
+			} else {
+				fmt.Println(info)
+			}
+		}
+
+		return nil
+	},
+}
+
+func GetBasicInfo() (string, error) {
+	const outputTemplate = `Environments:
+    $GOARCH:  {{ .GOARCH }}
+        The execution architecture (arm, amd64, etc.)
+    $GOOS:    {{ .GOOS }}
+        The execution operating system (linux, windows, etc.)
+    $GOFILE:  {{ .GOFILE }}
+        The base name of the file.
+    $GOLINE:  {{ .GOLINE }}
+        The line number of the directive in the source file.
+    $GOPACKAGE:  {{ .GOPACKAGE }}
+        The name of the package of the file containing the directive.
+
+Working Directory:
+    {{ .WORKDIR }}
+
+Command Args:
+    {{- range $i, $arg := .ARGS }}
+    [{{ $i }}] {{ $arg -}}
+    {{ end }}
+
+Configs:
+    {{- range $key, $value := .VIPER }}
+    [{{ $key }}]: {{ $value -}}
+    {{ end }}
+`
+
+	t, err := template.New("").Parse(outputTemplate)
+
+	if err != nil {
+		return "", err
+	}
+
+	buf := bytes.NewBufferString("")
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	err = t.Execute(buf, map[string]interface{}{
+		"GOARCH":    os.Getenv("GOARCH"),
+		"GOOS":      os.Getenv("GOOS"),
+		"GOFILE":    os.Getenv("GOFILE"),
+		"GOLINE":    os.Getenv("GOLINE"),
+		"GOPACKAGE": os.Getenv("GOPACKAGE"),
+		"WORKDIR":   wd,
+		"ARGS":      os.Args,
+		"VIPER":     viper.AllSettings(),
+	})
+
+	s := buf.String()
+
+	return s, nil
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -51,41 +124,16 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringP("gofile", "", "", "mock Environment value")
+	rootCmd.PersistentFlags().StringP("gopackage", "", "", "mock Environment value")
+	rootCmd.PersistentFlags().StringP("workdir", "w", ".", "work directory")
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	rootCmd.PersistentFlags().BoolP("debug", "", false, "debug mode")
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.generate.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".generate" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".generate")
-	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	_ = viper.BindPFlags(rootCmd.PersistentFlags())
+	_ = viper.BindEnv("GOARCH")
+	_ = viper.BindEnv("GOOS")
+	_ = viper.BindEnv("GOFILE")
+	_ = viper.BindEnv("GOLINE")
+	_ = viper.BindEnv("GOPACKAGE")
 }
