@@ -291,9 +291,15 @@ func GetStructsFromPackage() (Structs, error) {
 				if _, ok := functions[field.GetterName]; ok {
 					field.WillGenerateGetter = false
 				}
+				if _, ok := s.Fields[field.GetterName]; ok {
+					field.WillGenerateGetter = false
+				}
 			}
 			if field.WillGenerateSetter {
 				if _, ok := functions[field.SetterName]; ok {
+					field.WillGenerateSetter = false
+				}
+				if _, ok := s.Fields[field.SetterName]; ok {
 					field.WillGenerateSetter = false
 				}
 			}
