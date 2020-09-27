@@ -26,8 +26,9 @@ type Field struct {
 	SetterAlreadyExist bool
 	WillGenerateSetter bool
 
-	IsPublic  bool
-	HasGetter bool
+	IsPublic     bool
+	ShouldIgnore bool
+	HasGetter    bool
 
 	IgnoreReason string
 }
@@ -35,30 +36,31 @@ type Field struct {
 type Fields map[string]*Field
 
 type Struct struct {
-	Name          string // 结构体名称
-	ShortName     string // 生成的函数中用于引用结构体的名称
-	LowerName     string
-	IsPresent     bool   // 结构体在包中存在
-	PublicFields  Fields // 结构体包含的成员
-	PrivateFields Fields
-	IgnoreFields  Fields
+	Name      string // 结构体名称
+	ShortName string // 生成的函数中用于引用结构体的名称
+	LowerName string
+	IsPresent bool   // 结构体在包中存在
+	Fields    Fields // 结构体包含的成员
 
 	ImportedStatements string // 这个 struct 定义可能需要依赖的导入语句
 }
 
 type Structs map[string]*Struct
 
-func GetFieldsFromStruct(structType *ast.StructType) (privateFields Fields, publicFields Fields, ignoreFields Fields, err error) {
-	privateFields = make(Fields, 0)
-	publicFields = make(Fields, 0)
-	ignoreFields = make(Fields, 0)
+func GetFieldsFromStruct(structType *ast.StructType) (fields Fields, err error) {
+	fields = make(Fields, len(structType.Fields.List)<<1)
 
 	for _, field := range structType.Fields.List {
+		tag := field.Tag.Value
+
+		willGenerateGetter := !strings.Contains(tag, `getter:"disable"`)
+		willGenerateSetter := !strings.Contains(tag, `setter:"disable"`)
 
 		for _, name := range field.Names {
 			if ShouldIgnore(name.Name) {
-				ignoreFields[name.Name] = &Field{
+				fields[name.Name] = &Field{
 					Name:         name.Name,
+					ShouldIgnore: true,
 					IgnoreReason: "name is invalid",
 				}
 
@@ -72,7 +74,7 @@ func GetFieldsFromStruct(structType *ast.StructType) (privateFields Fields, publ
 			file, err := os.Open(startPosition.Filename)
 
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("cannot read file %s: %w", startPosition.Filename, err)
+				return nil, fmt.Errorf("cannot read file %s: %w", startPosition.Filename, err)
 			}
 
 			defer file.Close()
@@ -81,30 +83,32 @@ func GetFieldsFromStruct(structType *ast.StructType) (privateFields Fields, publ
 			_, err = file.ReadAt(b, int64(startPosition.Offset))
 
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf(
+				return nil, fmt.Errorf(
 					"cannot read file %s in position [%d, %d): %w",
 					startPosition.Filename, startPosition.Offset, endPosition.Offset, err,
 				)
 			}
 
 			theField := &Field{
-				Name:     name.Name,
-				Type:     string(b),
-				IsPublic: IsPublic(name.Name),
+				Name:               name.Name,
+				Type:               string(b),
+				IsPublic:           IsPublic(name.Name),
+				WillGenerateGetter: willGenerateGetter,
+				WillGenerateSetter: willGenerateSetter,
 			}
-
-			theField.WillGenerateGetter = true
-			theField.SetterName = "" // TODO
 
 			if theField.IsPublic {
 				theField.WillGenerateGetter = false
 
-				publicFields[name.Name] = theField
+				fields[name.Name] = theField
 			} else {
-				theField.WillGenerateGetter = true
 				theField.GetterName = toGetterName(name.Name)
 
-				privateFields[name.Name] = theField
+				fields[name.Name] = theField
+			}
+
+			if theField.WillGenerateGetter {
+				theField.SetterName = "" // TODO
 			}
 		}
 	}
@@ -179,16 +183,14 @@ func GetStructsFromFile(astFile *ast.File) (Structs, error) {
 					return nil, fmt.Errorf("cannot get shortName for %s: %w", name, err)
 				}
 
-				privateFields, publicFields, ignoreFields, err := GetFieldsFromStruct(structType)
+				fields, err := GetFieldsFromStruct(structType)
 
 				structs[name] = &Struct{
 					Name:               name,
 					ShortName:          shortName,
 					LowerName:          strings.ToLower(name),
 					IsPresent:          true,
-					PublicFields:       publicFields,
-					PrivateFields:      privateFields,
-					IgnoreFields:       ignoreFields,
+					Fields:             fields,
 					ImportedStatements: importedStatements,
 				}
 			}
@@ -272,6 +274,28 @@ func GetStructsFromPackage() (Structs, error) {
 		for name, s := range structs {
 			if s == nil {
 				return nil, fmt.Errorf("cannot get struct %s from package", name)
+			}
+		}
+	}
+
+	// avoid to generate existed getter/setter
+	for _, s := range structs {
+		functions, err := GetFunctionsFromPackageForStruct(s)
+
+		if err != nil {
+			return nil, fmt.Errorf("cannot get functions from package: %w", err)
+		}
+
+		for _, field := range s.Fields {
+			if field.WillGenerateGetter {
+				if _, ok := functions[field.GetterName]; ok {
+					field.WillGenerateGetter = false
+				}
+			}
+			if field.WillGenerateSetter {
+				if _, ok := functions[field.SetterName]; ok {
+					field.WillGenerateSetter = false
+				}
 			}
 		}
 	}

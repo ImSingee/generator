@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/spf13/viper"
+	"go/token"
 	"golang.org/x/tools/imports"
 	"io"
 	"os"
@@ -36,4 +37,28 @@ func SaveGoCodeToFile(filename string, content []byte) error {
 	}
 
 	return SaveToFile(filename, content)
+}
+
+func GetStringFromPosition(start token.Pos, end token.Pos) (string, error) {
+	startPos := fileSet.Position(start)
+	endPos := fileSet.Position(end)
+
+	f, err := os.Open(startPos.Filename)
+
+	if err != nil {
+		return "", fmt.Errorf("cannot read file %s: %w", startPos.Filename, err)
+	}
+
+	defer f.Close()
+
+	text := make([]byte, endPos.Offset-startPos.Offset)
+
+	_, _ = f.Seek(0, 0)
+	_, err = f.ReadAt(text, int64(startPos.Offset))
+
+	if err != nil {
+		return "", fmt.Errorf("cannot read file %s in [%d, %d): %w", startPos.Filename, startPos.Offset, endPos.Offset, err)
+	}
+
+	return ToString(text), nil
 }

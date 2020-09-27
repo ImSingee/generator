@@ -14,7 +14,7 @@ package {{ $.pkg }}
 
 {{ $.struct.ImportedStatements }}
 
-{{ range $_, $field := $.struct.PrivateFields }}
+{{ range $_, $field := $.struct.Fields }}
 {{ if $field.WillGenerateGetter }}
 func ({{ $.struct.ShortName }} *{{ $.struct.Name }}) {{ $field.GetterName }}() {{ $field.Type }} {
 	return {{ $.struct.ShortName }}.{{ $field.Name }}
