@@ -59,7 +59,7 @@ func IsPrivate(name string) bool {
 }
 
 func ShouldIgnore(name string) bool {
-	return !IsASCII(name[0])
+	return name == "" || !IsASCII(name[0])
 }
 
 func ToGetterName(name string) (string, error) {
@@ -73,10 +73,10 @@ func ToGetterName(name string) (string, error) {
 		return "", fmt.Errorf("name %s must started with a lower ASCII letter", name)
 	}
 
-	return forceToGetterName(name), nil
+	return toGetterName(name), nil
 }
 
-func forceToGetterName(name string) string {
+func toGetterName(name string) string {
 	getterName := strings.Builder{}
 
 	n := []rune(name)

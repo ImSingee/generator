@@ -56,6 +56,9 @@ var rootCmd = &cobra.Command{
 
 		return nil
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Done!")
+	},
 }
 
 func GetBasicInfo() (string, error) {
@@ -127,6 +130,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("gofile", "", "", "mock Environment value")
 	rootCmd.PersistentFlags().StringP("gopackage", "", "", "mock Environment value")
 	rootCmd.PersistentFlags().StringP("workdir", "w", ".", "work directory")
+	rootCmd.PersistentFlags().StringP("filename", "", "{{ $.struct.LowerName }}_{{ $.type }}.go", "")
 
 	rootCmd.PersistentFlags().BoolP("debug", "", false, "debug mode")
 

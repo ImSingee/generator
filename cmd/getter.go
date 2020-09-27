@@ -16,10 +16,11 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"github.com/ImSingee/god/generator"
 	"github.com/ImSingee/god/utils"
-	"github.com/spf13/viper"
-
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // getterCmd represents the getter command
@@ -38,11 +39,33 @@ func init() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	// 1. 启动分析程序
-	_, err := utils.GetStructsFromPackage()
+	structs, err := utils.GetStructsFromPackage()
 
 	if err != nil {
 		return err
+	}
+
+	results, err := generator.GenerateGetters(structs)
+
+	if err != nil {
+		return err
+	}
+
+	t := utils.GetTemplate("filename", viper.GetString("filename"))
+
+	for s, result := range results {
+		filename := utils.ExecuteTemplate(t, map[string]interface{}{
+			"struct": s,
+			"type":   "getter",
+		})
+
+		err := utils.SaveGoCodeToFile(filename, result)
+
+		if err != nil {
+			return fmt.Errorf("cannot save to file %s: %w", filename, err)
+		}
+
+		fmt.Printf("Generate getter for struct %s, save as %s\n", s.Name, filename)
 	}
 
 	return nil
