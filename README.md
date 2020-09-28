@@ -26,7 +26,7 @@ type SomeStruct struct {
    field4 string   // 不会产生新方法
 
    // ignore field
-   field5 string  `getter:"ignore"` // 不会产生新方法
+   field5 string  `getter:"disable"` // 不会产生新方法
 }
 
 func (ss *SomeStruct) Field4() string {
@@ -37,10 +37,12 @@ func (ss *SomeStruct) Field4() string {
 生成遵从以下规则
 
 1. 只有 private field 会产生 Getter
-2. 如果指定了 `getter:"ignore"` 则不会产生 Getter
+2. 如果指定了 `getter:"disable"` 则不会产生 Getter
 3. 如果已经有了自定义的 Getter 则不会额外产生新的 Getter
 4. 如果有同名（指的是只有首字母大小写不同）属性则不会产生 Getter 并且会给出警告
 5. 满足上述所有条件后会生成 Getter，例如 `field1` 会导致结构体增加 `Field1` 方法并返回 `field1` 所对应的值
+
+### Setter
 
 ## License
 

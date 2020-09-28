@@ -51,10 +51,15 @@ func GetFieldsFromStruct(structType *ast.StructType) (fields Fields, err error) 
 	fields = make(Fields, len(structType.Fields.List)<<1)
 
 	for _, field := range structType.Fields.List {
-		tag := field.Tag.Value
+		willGenerateGetter := true
+		willGenerateSetter := true
 
-		willGenerateGetter := !strings.Contains(tag, `getter:"disable"`)
-		willGenerateSetter := !strings.Contains(tag, `setter:"disable"`)
+		if field.Tag != nil {
+			tag := field.Tag.Value
+
+			willGenerateGetter = !strings.Contains(tag, `getter:"disable"`)
+			willGenerateSetter = !strings.Contains(tag, `setter:"disable"`)
+		}
 
 		for _, name := range field.Names {
 			if ShouldIgnore(name.Name) {
