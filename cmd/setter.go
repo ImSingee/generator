@@ -24,28 +24,28 @@ import (
 )
 
 // getterCmd represents the getter command
-var getterCmd = &cobra.Command{
-	Use:   "getter",
-	Short: "Generate getter functions for specific struct",
-	RunE:  runGetter,
+var setterCmd = &cobra.Command{
+	Use:   "setter",
+	Short: "Generate setter functions for specific struct",
+	RunE:  runSetter,
 }
 
 func init() {
-	rootCmd.AddCommand(getterCmd)
+	rootCmd.AddCommand(setterCmd)
 
-	getterCmd.Flags().StringSliceP("struct", "t", []string{}, "Name list for structs")
+	setterCmd.Flags().StringSliceP("struct", "t", []string{}, "Name list for structs")
 
-	_ = viper.BindPFlags(getterCmd.Flags())
+	_ = viper.BindPFlags(setterCmd.Flags())
 }
 
-func runGetter(cmd *cobra.Command, args []string) error {
+func runSetter(cmd *cobra.Command, args []string) error {
 	structs, err := utils.GetStructsFromPackage()
 
 	if err != nil {
 		return err
 	}
 
-	results, err := generator.GenerateGetters(structs)
+	results, err := generator.GenerateSetters(structs)
 
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func runGetter(cmd *cobra.Command, args []string) error {
 	for s, result := range results {
 		filename := utils.ExecuteTemplate(t, map[string]interface{}{
 			"struct": s,
-			"type":   "getter",
+			"type":   "setter",
 		})
 
 		err := utils.SaveGoCodeToFile(filename, result)
@@ -65,7 +65,7 @@ func runGetter(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("cannot save to file %s: %w", filename, err)
 		}
 
-		fmt.Printf("Generate getter for struct %s, save as %s\n", s.Name, filename)
+		fmt.Printf("Generate setter for struct %s, save as %s\n", s.Name, filename)
 	}
 
 	return nil

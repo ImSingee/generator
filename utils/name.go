@@ -76,6 +76,17 @@ func ToGetterName(name string) (string, error) {
 	return toGetterName(name), nil
 }
 
+func ToSetterName(name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("name cannot be empty")
+	}
+	if !IsASCII(name[0]) {
+		return "", fmt.Errorf("name %s must started with an ASCII letter", name)
+	}
+
+	return toSetterName(name), nil
+}
+
 func toGetterName(name string) string {
 	getterName := strings.Builder{}
 
@@ -88,4 +99,19 @@ func toGetterName(name string) string {
 	}
 
 	return getterName.String()
+}
+
+func toSetterName(name string) string {
+	setterName := strings.Builder{}
+	setterName.WriteString("Set")
+
+	n := []rune(name)
+
+	setterName.WriteRune(unicode.ToUpper(n[0]))
+
+	for _, c := range n[1:] {
+		setterName.WriteRune(c)
+	}
+
+	return setterName.String()
 }

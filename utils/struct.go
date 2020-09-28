@@ -107,8 +107,8 @@ func GetFieldsFromStruct(structType *ast.StructType) (fields Fields, err error) 
 				fields[name.Name] = theField
 			}
 
-			if theField.WillGenerateGetter {
-				theField.SetterName = "" // TODO
+			if theField.WillGenerateSetter {
+				theField.SetterName = toSetterName(name.Name)
 			}
 		}
 	}
